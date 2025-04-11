@@ -1,4 +1,4 @@
-name: GitHub Action Tauri Application
+name: GitHub Action Electron Application
 run-name: ${{ github.actor }} is running ExpenseHub GitHub Actions 🚀
 
 on:
@@ -22,16 +22,28 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "22"
+          node-version: "20.18.0"
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build the Application
+      - name: Build the Application for Windows
+        if: matrix.os == 'windows-latest'
+        run: npm run tauri build
+
+      - name: Build the Application for Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-0 ibgtk-3-0 libappindicator3-1
+          npm run tauri build
+
+      - name: Build the Application for MacOS
+        if: matrix.os == 'macos-latest'
         run: npm run tauri build
 
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4.4.3
         with:
           name: electron-build-${{ matrix.os }}
-          path: src-tauri/target/release/bundle/
+          path: dist/
