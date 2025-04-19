@@ -83,11 +83,14 @@ jobs:
         run: |
           sdkmanager "ndk;25.2.9519653"
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
 
       - name: Build Android APK
+        env:
+          NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
         run: |
           npm run tauri android init
-          npm run tauri android build -- --apk
+          npm run tauri android build --apk
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4.4.3
