@@ -1,4 +1,4 @@
-name: GitHub Action Tauri Application
+name: GitHub Action Electron Application
 run-name: ${{ github.actor }} is running ExpenseHub GitHub Actions 🚀
 
 on:
@@ -10,28 +10,101 @@ on:
       - main
 
 jobs:
-  build-setup:
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  # build-setup:
+  #   strategy:
+  #     matrix:
+  #       os: [macos-latest, ubuntu-latest, windows-latest]
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@v3
+
+  #     - name: Set up Node.js
+  #       uses: actions/setup-node@v3
+  #       with:
+  #         node-version: "20.18.0"
+
+  #     - name: Install dependencies
+  #       run: npm install
+
+  #     - name: Build the Application for Windows
+  #       if: matrix.os == 'windows-latest'
+  #       run: npm run tauri build
+
+  #     - name: Build the Application for Linux
+  #       if: matrix.os == 'ubuntu-latest'
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libglib2.0-dev \
+  #           libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libappindicator3-dev \
+  #           librsvg2-dev patchelf libssl-dev
+  #         npm run tauri build
+
+  #     - name: Build the Application for MacOS
+  #       if: matrix.os == 'macos-latest'
+  #       run: npm run tauri build
+
+  #     - name: Upload a Build Artifact
+  #       uses: actions/upload-artifact@v4.4.3
+  #       with:
+  #         name: tauri-build-${{ matrix.os }}
+  #         path: src-tauri/target/release/bundle
+
+  build-android:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "22"
+          node-version: "20.18.0"
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build the Application
-        run: npm run tauri build
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
 
-      - name: Upload a Build Artifact
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager "ndk;25.2.9519653"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+
+      - name: Initialize Android
+        env:
+          NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
+        run: npm run tauri android init
+
+      - name: setup Android signing
+        run: |
+          cd src-tauri/gen/android
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > keystore.properties
+          echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> keystore.properties
+          base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > $RUNNER_TEMP/keystore.jks
+          echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
+
+      - name: Build Android APK
+        env:
+          NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
+        run: npm run tauri android build --apk
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4.4.3
         with:
-          name: electron-build-${{ matrix.os }}
-          path: src-tauri/target/release/bundle/
+          name: android-apk
+          path: src-tauri/gen/android/app/build/outputs/apk
