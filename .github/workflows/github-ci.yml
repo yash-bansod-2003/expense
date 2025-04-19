@@ -103,4 +103,4 @@ jobs:
         uses: actions/upload-artifact@v4.4.3
         with:
           name: android-apk
-          path: src-tauri/gen/android/app/build/outputs/apk/
+          path: src-tauri/target/release/bundle
